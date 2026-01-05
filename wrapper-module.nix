@@ -17,7 +17,7 @@ let
   fileBuilderType = types.attrsOf (
     types.attrsOf (
       types.submodule [
-        ./envpath-options.nix
+        ./path-options.nix
         { _module.args.pkgs = pkgs; }
       ]
     )
