@@ -5,26 +5,25 @@ let
       x = f x;
     in
     x;
+  importIfPath = val: if builtins.isPath val then import val else val;
 in
 fix (self: {
   mkWrapper =
     pkgs: definition:
     let
       lib = pkgs.lib;
-      module = pkgs.callPackage definition { };
-      sanitizedModule = removeAttrs module [
-        "override"
-        "overrideDerivation"
-      ];
+      module = importIfPath definition { };
     in
     (lib.evalModules {
       modules = [
-        sanitizedModule
+        module
         ./wrapper-module.nix
         { _module.args = { inherit pkgs lib; }; }
       ];
-    }).config.result
-    // {
-      override = args: self.mkWrapper (_: pkgs.callPackage definition args);
-    };
+    }).config.result.overrideAttrs
+      (old: {
+        passthru = old.passthru or { } // {
+          override = args: self.mkWrapper pkgs (_: importIfPath definition args);
+        };
+      });
 })
