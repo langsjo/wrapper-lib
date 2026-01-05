@@ -82,4 +82,3 @@ runCommand drvName { } ''
     target: def: "link '${target}' '${def.source}' '${toString def.executable}'"
   ) manifest}
 ''
-

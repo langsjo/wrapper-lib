@@ -1,5 +1,10 @@
 let
-  fix = f: let x = f x; in x;
+  fix =
+    f:
+    let
+      x = f x;
+    in
+    x;
 in
 fix (self: {
   mkWrapper =

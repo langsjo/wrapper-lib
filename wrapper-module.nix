@@ -21,37 +21,37 @@ let
   );
   pathConstructor = pkgs.callPackage ./path-constructor.nix { };
   mkEnvVarOption =
-  description:
-  mkOption {
-    description = ''
-      ${description}
+    description:
+    mkOption {
+      description = ''
+        ${description}
 
-              The value of each variable can be either a string, integer, path,
-              or a list of the aforementioned. A list will be concatenated with
-              colon characters as separators.
-    '';
-    default = { };
-    type =
-      with types;
-      attrsOf (oneOf [
-        (listOf (oneOf [
+                The value of each variable can be either a string, integer, path,
+                or a list of the aforementioned. A list will be concatenated with
+                colon characters as separators.
+      '';
+      default = { };
+      type =
+        with types;
+        attrsOf (oneOf [
+          (listOf (oneOf [
+            int
+            str
+            path
+          ]))
           int
           str
           path
-        ]))
-        int
-        str
-        path
-      ]);
-    # Turn values passed to strings, concatenate lists with ":" as separators,
-    # and copy paths to the store
-    apply =
-      let
-        # Copy paths to store by string interpolation
-        toStr = v: if lib.isPath v then "${v}" else toString v;
-      in
+        ]);
+      # Turn values passed to strings, concatenate lists with ":" as separators,
+      # and copy paths to the store
+      apply =
+        let
+          # Copy paths to store by string interpolation
+          toStr = v: if lib.isPath v then "${v}" else toString v;
+        in
         lib.mapAttrs (_: v: if lib.isList v then (lib.concatMapStringsSep ":" (toStr v)) else toStr v);
-  };
+    };
 in
 {
   options = {
@@ -277,4 +277,3 @@ in
       };
   };
 }
-
