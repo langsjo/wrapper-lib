@@ -11,6 +11,9 @@ let
     types
     ;
 
+  versionSuffix = if config.package ? version then "-${config.package.version}" else "";
+  wrapperName = "${config.package.pname or config.package.name}-wrapped${versionSuffix}";
+
   fileBuilderType = types.attrsOf (
     types.attrsOf (
       types.submodule [
@@ -126,7 +129,9 @@ in
         '';
         type = fileBuilderType;
         default = { };
-        apply = builtins.mapAttrs pathConstructor;
+        apply = builtins.mapAttrs (
+          attrName: manifest: pathConstructor { inherit wrapperName attrName manifest; }
+        );
         example = literalExpression ''
           {
             "--config-dir" = {
@@ -188,7 +193,9 @@ in
         '';
         type = fileBuilderType;
         default = { };
-        apply = builtins.mapAttrs pathConstructor;
+        apply = builtins.mapAttrs (
+          attrName: manifest: pathConstructor { inherit wrapperName attrName manifest; }
+        );
         example = literalExpression ''
           {
             CONFIG_DIR = {
@@ -252,11 +259,10 @@ in
         hasMan = builtins.elem "man" config.package.outputs;
         outputs = [ "out" ] ++ (lib.optional hasMan "man");
         makeWrapperPkg = if config.useBinaryWrapper then pkgs.makeBinaryWrapper else pkgs.makeWrapper;
-        versionSuffix = if config.package ? version then "-${config.package.version}" else "";
-        name = "${config.package.pname or config.package.name}-wrapped${versionSuffix}";
       in
       pkgs.symlinkJoin {
-        inherit name outputs;
+        name = wrapperName;
+        inherit outputs;
         inherit (config.package) passthru;
         meta = config.package.meta // {
           outputsToInstall = outputs;

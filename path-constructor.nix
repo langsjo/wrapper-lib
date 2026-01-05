@@ -4,11 +4,11 @@
 }:
 {
   wrapperName,
-  envVar,
+  attrName,
   manifest,
 }:
 let
-  drvName = "${wrapperName}-wrapped_${envVar}";
+  drvName = "${wrapperName}-wrapped_${attrName}";
 in
 runCommand drvName { } ''
   printerr() {
@@ -37,7 +37,7 @@ runCommand drvName { } ''
     local realsource
     if ! realsource=$(realpath -e "$source" 2> /dev/null) ; then
       printerr "The specified source $source does not exist or is a dangling symlink or symlink chain"
-      printerr "Specified in the '${wrapperName}' wrapper under ${envVar}, as source for $relative_target"
+      printerr "Specified in the '${wrapperName}' wrapper under ${attrName}, as source for $relative_target"
       printerr "NOTE: the path, symlink, or symlink chain must be valid during build time"
       exit 1
     fi
