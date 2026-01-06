@@ -7,12 +7,12 @@ let
     x;
 in
 fix (
-  self:
+  selfUninit:
   {
     useBinaryWrapper ? false,
   }:
-  {
-    withSettings = settings: self settings;
+  fix (selfInit: {
+    withSettings = settings: selfUninit settings;
     mkWrapper =
       pkgs: definition:
       let
@@ -32,15 +32,13 @@ fix (
           ./wrapper-module.nix
           { _module.args = { inherit pkgs lib; }; }
 
-          {
-            inherit useBinaryWrapper;
-          }
+          { inherit useBinaryWrapper; }
         ];
       }).config.result.overrideAttrs
         (old: {
           passthru = old.passthru or { } // {
-            override = args: self.mkWrapper pkgs (_: pkgs.callPackage definition args);
+            override = args: selfInit.mkWrapper pkgs (_: pkgs.callPackage definition args);
           };
         });
-  }
+  })
 )
