@@ -79,7 +79,6 @@ in
         [here](https://nixos.org/manual/nixpkgs/unstable/#:~:text=Using%20the%20makeBinaryWrapper%20implementation)
       '';
       type = types.bool;
-      default = true;
       example = true;
     };
 
