@@ -32,7 +32,9 @@ fix (
           ./wrapper-module.nix
           { _module.args = { inherit pkgs lib; }; }
 
-          { inherit useBinaryWrapper; }
+          {
+            useBinaryWrapper = lib.mkDefault useBinaryWrapper;
+          }
         ];
       }).config.result.overrideAttrs
         (old: {
