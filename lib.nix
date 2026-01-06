@@ -9,6 +9,7 @@ in
 fix (
   selfUninit:
   {
+    extraArgs ? { },
     useBinaryWrapper ? false,
   }:
   fix (selfInit: {
@@ -16,8 +17,9 @@ fix (
     mkWrapper =
       pkgs: definition:
       let
+        callPackage' = pkgs.newScope extraArgs;
         lib = pkgs.lib;
-        module = pkgs.callPackage definition { };
+        module = callPackage' definition { };
 
         # callPackage adds these two attributes that aren't valid
         # module options
@@ -39,7 +41,7 @@ fix (
       }).config.result.overrideAttrs
         (old: {
           passthru = old.passthru or { } // {
-            override = args: selfInit.mkWrapper pkgs (_: pkgs.callPackage definition args);
+            override = args: selfInit.mkWrapper pkgs (_: callPackage' definition args);
           };
         });
   })
