@@ -8,7 +8,8 @@
   manifest,
 }:
 let
-  drvName = "${wrapperName}-wrapped_${attrName}";
+
+  drvName = "${wrapperName}_${attrName}";
 in
 runCommand drvName { } ''
   printerr() {

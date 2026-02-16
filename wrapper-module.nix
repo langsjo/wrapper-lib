@@ -5,14 +5,19 @@
   ...
 }:
 let
-  inherit (lib)
-    literalExpression
-    mkOption
-    types
-    ;
+  inherit (lib) literalExpression mkOption types;
 
-  versionSuffix = if config.package ? version then "-${config.package.version}" else "";
-  wrapperName = "${config.package.pname or config.package.name}-wrapped${versionSuffix}";
+  # We want to pass pname + version if possible for better metadata, but not all
+  # packages have pname + version, only name
+  hasPnameVersion = config.package ? pname && config.package ? version;
+  wrapperNameSet =
+    (lib.optionalAttrs hasPnameVersion {
+      pname = config.package.pname + "-wrapped";
+      version = config.package.version;
+    })
+    // (lib.optionalAttrs (!hasPnameVersion) { name = config.package.name + "-wrapped"; });
+
+  wrapperName = wrapperNameSet.name or "${wrapperNameSet.pname}-${wrapperNameSet.version}";
 
   fileBuilderType = types.attrsOf (
     types.attrsOf (
@@ -259,8 +264,8 @@ in
         outputs = [ "out" ] ++ (lib.optional hasMan "man");
         makeWrapperPkg = if config.useBinaryWrapper then pkgs.makeBinaryWrapper else pkgs.makeWrapper;
       in
-      pkgs.symlinkJoin {
-        name = wrapperName;
+      pkgs.symlinkJoin (wrapperNameSet
+      // {
         inherit outputs;
         inherit (config.package) passthru;
         meta = config.package.meta // {
@@ -279,6 +284,6 @@ in
             cp -rs ${config.package.man} $man
           ''}
         '';
-      };
+      });
   };
 }
