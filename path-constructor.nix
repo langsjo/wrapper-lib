@@ -8,8 +8,10 @@
   manifest,
 }:
 let
-
-  drvName = "${wrapperName}_${attrName}";
+  illegalChars = [ "=" ];
+  replacements = builtins.genList (_: "") (builtins.length illegalChars);
+  cleanAttrName = builtins.replaceStrings illegalChars replacements attrName;
+  drvName = "${wrapperName}_${cleanAttrName}";
 in
 runCommand drvName { } ''
   printerr() {
