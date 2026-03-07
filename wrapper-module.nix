@@ -9,13 +9,16 @@ let
 
   # We want to pass pname + version if possible for better metadata, but not all
   # packages have pname + version, only name
-  wrapperNameSet = 
-    if config.package ? pname && config.package ? version then {
-      pname = config.package.pname + "-wrapped";
-      version = config.package.version;
-    } else {
-      name = config.package.name + "-wrapped";
-    };
+  wrapperNameSet =
+    if config.package ? pname && config.package ? version then
+      {
+        pname = config.package.pname + "-wrapped";
+        version = config.package.version;
+      }
+    else
+      {
+        name = config.package.name + "-wrapped";
+      };
 
   wrapperName = wrapperNameSet.name or "${wrapperNameSet.pname}-${wrapperNameSet.version}";
 
@@ -264,26 +267,28 @@ in
         outputs = [ "out" ] ++ (lib.optional hasMan "man");
         makeWrapperPkg = if config.useBinaryWrapper then pkgs.makeBinaryWrapper else pkgs.makeWrapper;
       in
-      pkgs.symlinkJoin (wrapperNameSet
-      // {
-        inherit outputs;
-        inherit (config.package) passthru;
-        meta = config.package.meta // {
-          outputsToInstall = outputs;
-        };
+      pkgs.symlinkJoin (
+        wrapperNameSet
+        // {
+          inherit outputs;
+          inherit (config.package) passthru;
+          meta = config.package.meta // {
+            outputsToInstall = outputs;
+          };
 
-        paths = [ config.package ];
-        nativeBuildInputs = [ makeWrapperPkg ];
-        postBuild = ''
-          for bin in "$out"/bin/*; do
-            [[ -x "$bin" ]] || continue
-            wrapProgram "$bin" ${makeWrapperArgs}
-          done
+          paths = [ config.package ];
+          nativeBuildInputs = [ makeWrapperPkg ];
+          postBuild = ''
+            for bin in "$out"/bin/*; do
+              [[ -x "$bin" ]] || continue
+              wrapProgram "$bin" ${makeWrapperArgs}
+            done
 
-          ${lib.optionalString hasMan ''
-            cp -rs ${config.package.man} $man
-          ''}
-        '';
-      });
+            ${lib.optionalString hasMan ''
+              cp -rs ${config.package.man} $man
+            ''}
+          '';
+        }
+      );
   };
 }
