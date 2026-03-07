@@ -104,6 +104,26 @@ in
       '';
     };
 
+    excludeBins = mkOption {
+      description = ''
+        List of files in $out/bin/ to not wrap. Can not be set if `includeBins`
+        is set.
+      '';
+      type = with types; listOf str;
+      default = [ ];
+      example = [ "kitten" ];
+    };
+
+    includeBins = mkOption {
+      description = ''
+        List of files in $out/bin/ to wrap, wraps everything by default. Can not
+        be set if `excludeBins` is set.
+      '';
+      type = with types; listOf str;
+      default = [ ];
+      example = [ "kitty" ];
+    };
+
     flags = {
       normal = mkOption {
         description = ''
@@ -219,9 +239,23 @@ in
         '';
       };
     };
+
+    # Needed to use assertions
+    assertions = mkOption {
+      type = with types; listOf unspecified;
+    };
   };
 
   config = {
+    assertions = [
+      {
+        assertion = config.excludeBins == [ ] || config.includeBins == [ ];
+        message = ''
+          Only one of `excludeBins` and `includeBins` should be set.
+        '';
+      }
+    ];
+
     result =
       let
         escapeQuotes = s: lib.escape [ ''"'' ] (toString s);
@@ -279,8 +313,34 @@ in
           paths = [ config.package ];
           nativeBuildInputs = [ makeWrapperPkg ];
           postBuild = ''
+            shouldWrap() {
+              ${lib.toShellVar "includes" config.includeBins}
+              ${lib.toShellVar "excludes" config.excludeBins}
+              local bin="''${1##*/}"
+
+              if [[ ''${#includes[@]} -gt 0 ]]; then
+                for elem in "''${includes[@]}"; do
+                  [[ "$bin" == "$elem" ]] && return 0
+                done
+
+                return 1
+              fi
+
+              if [[ ''${#excludes[@]} -gt 0 ]]; then
+                for elem in "''${excludes[@]}"; do
+                  [[ "$bin" == "$elem" ]] && return 1
+                done
+
+                return 0
+              fi
+
+              return 0
+            }
+
             for bin in "$out"/bin/*; do
               [[ -x "$bin" ]] || continue
+              shouldWrap "$bin" || continue
+
               wrapProgram "$bin" ${makeWrapperArgs}
             done
 
