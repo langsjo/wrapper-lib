@@ -9,13 +9,13 @@ let
 
   # We want to pass pname + version if possible for better metadata, but not all
   # packages have pname + version, only name
-  hasPnameVersion = config.package ? pname && config.package ? version;
-  wrapperNameSet =
-    (lib.optionalAttrs hasPnameVersion {
+  wrapperNameSet = 
+    if config.package ? pname && config.package ? version then {
       pname = config.package.pname + "-wrapped";
       version = config.package.version;
-    })
-    // (lib.optionalAttrs (!hasPnameVersion) { name = config.package.name + "-wrapped"; });
+    } else {
+      name = config.package.name + "-wrapped";
+    };
 
   wrapperName = wrapperNameSet.name or "${wrapperNameSet.pname}-${wrapperNameSet.version}";
 
