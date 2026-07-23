@@ -63,9 +63,8 @@ let
         in
         lib.mapAttrs (_: v: if lib.isList v then (lib.concatMapStringsSep ":" (toStr v)) else toStr v);
     };
-in
-{
-  options = {
+
+  generalOptionsSet = {
     package = mkOption {
       description = "The package to wrap";
       type = types.package;
@@ -98,8 +97,8 @@ in
       default = [ ];
       example = literalExpression ''
         [
-          "--chdir /nix/store"
-          "--set-default XDG_CACHE_HOME /tmp"
+          "--chdir" "/nix/store"
+          "--set-default" "XDG_CACHE_HOME" "/tmp"
         ]
       '';
     };
@@ -240,9 +239,94 @@ in
       };
     };
 
+    finalMakeWrapperArgs = mkOption {
+      description = "final makeWrapper args to use";
+      type = types.str;
+      internal = true;
+      readOnly = true;
+    };
+
     # Needed to use assertions
     assertions = mkOption {
       type = with types; listOf unspecified;
+    };
+  };
+
+  mkFinalMakeWrapperArgs =
+    modConfig:
+    let
+      flags = {
+        normal = map (flag: [
+          "--add-flags"
+          flag
+        ]) modConfig.flags.normal;
+
+        # A flag like `--config=<file>` must be one arg
+        path = lib.mapAttrsToList (
+          flag: value:
+          if lib.hasSuffix "=" flag then
+            [
+              "--add-flags"
+              "${flag}${value}"
+            ]
+          # nested list, it's ok since we flatten in the end
+          else
+            [
+              "--add-flags"
+              flag
+              "--add-flags"
+              value
+            ]
+        ) modConfig.flags.path;
+
+      };
+
+      collectArgs = args: lib.flatten (lib.attrValues args);
+      flagArgs = collectArgs flags;
+
+      # collectEnvVars =
+      #   flagType: separator: vars:
+      #   lib.concatMapAttrsStringSep " " (
+      #     var: value: ''${flagType} "${escapeQuotes var}" ${separator} "${escapeQuotes value}" ''
+      #   ) vars;
+
+      collectEnvVars =
+        flagType: separator: vars:
+        lib.mapAttrsToList (
+          var: value:
+          [
+            flagType
+            var
+          ]
+          ++ lib.optional (separator != null) separator
+          ++ [ value ]
+        ) vars;
+      env = {
+        vars = collectEnvVars "--set" null modConfig.env.vars;
+        paths = collectEnvVars "--set" null modConfig.env.paths;
+        prefixes = collectEnvVars "--prefix" ":" modConfig.env.prefixes;
+        suffixes = collectEnvVars "--suffix" ":" modConfig.env.suffixes;
+      };
+
+      envArgs = collectArgs env;
+
+      makeWrapperArgs = lib.escapeShellArgs (flagArgs ++ envArgs ++ modConfig.extraMakeWrapperArgs);
+    in
+    makeWrapperArgs;
+in
+{
+  options = generalOptionsSet // {
+    bin = mkOption {
+      description = "wrapping options to apply only to specific executable in package";
+      type =
+        with types;
+        attrsOf (submodule [
+          ({ config, ... }: {
+            options = generalOptionsSet;
+            config.finalMakeWrapperArgs = mkFinalMakeWrapperArgs config;
+          })
+        ]);
+      default = { };
     };
   };
 
@@ -256,47 +340,10 @@ in
       }
     ];
 
+    finalMakeWrapperArgs = mkFinalMakeWrapperArgs config;
+
     result =
       let
-        escapeQuotes = s: lib.escape [ ''"'' ] (toString s);
-        collectFlags =
-          flagType: flags: lib.concatMapStringsSep " " (flag: ''${flagType} "${escapeQuotes flag}"'') flags;
-
-        flags = {
-          normal = collectFlags "--add-flags" config.flags.normal;
-          path = lib.concatMapAttrsStringSep " " (
-            flag: path:
-            let
-              # If the flag is something like `--config-dir=`, there can't be a space between the path and the flag
-              separator = if lib.hasSuffix "=" flag then "" else " ";
-            in
-            ''--add-flags "${escapeQuotes flag}${separator}${escapeQuotes path}"''
-          ) config.flags.path;
-        };
-        collectArgs = lib.concatMapAttrsStringSep " " (_: args: args);
-        flagArgs = collectArgs flags;
-
-        collectEnvVars =
-          flagType: separator: vars:
-          lib.concatMapAttrsStringSep " " (
-            var: value: ''${flagType} "${escapeQuotes var}" ${separator} "${escapeQuotes value}" ''
-          ) vars;
-
-        env = {
-          vars = collectEnvVars "--set" "" config.env.vars;
-          paths = collectEnvVars "--set" "" config.env.paths;
-          prefixes = collectEnvVars "--prefix" ":" config.env.prefixes;
-          suffixes = collectEnvVars "--suffix" ":" config.env.suffixes;
-        };
-
-        envArgs = collectArgs env;
-
-        makeWrapperArgs = lib.concatStringsSep " " [
-          flagArgs
-          envArgs
-          (toString config.extraMakeWrapperArgs)
-        ];
-
         hasMan = builtins.elem "man" config.package.outputs;
         outputs = [ "out" ] ++ (lib.optional hasMan "man");
         makeWrapperPkg = if config.useBinaryWrapper then pkgs.makeBinaryWrapper else pkgs.makeWrapper;
@@ -341,7 +388,14 @@ in
               [[ -x "$bin" ]] || continue
               shouldWrap "$bin" || continue
 
-              wrapProgram "$bin" ${makeWrapperArgs}
+              name=''${bin##*/}
+              args=(${config.finalMakeWrapperArgs})
+              ${lib.concatMapAttrsStringSep "\n" (n: v: /* bash */ ''
+                if [[ "$name" == "${n}" ]]; then
+                  args+=(${v.finalMakeWrapperArgs})
+                fi
+              '') config.bin}
+              wrapProgram "$bin" ''${args[@]}
             done
 
             ${lib.optionalString hasMan ''
