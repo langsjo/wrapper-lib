@@ -123,6 +123,13 @@ let
       example = [ "kitty" ];
     };
 
+    includeAbsolute = mkOption {
+      description = "Also include binaries in this path relative from $out";
+      type = with types; listOf str;
+      default = [ ];
+      example = [ "libexec/scdaemon" ];
+    };
+
     flags = {
       normal = mkOption {
         description = ''
@@ -347,6 +354,10 @@ in
         hasMan = builtins.elem "man" config.package.outputs;
         outputs = [ "out" ] ++ (lib.optional hasMan "man");
         makeWrapperPkg = if config.useBinaryWrapper then pkgs.makeBinaryWrapper else pkgs.makeWrapper;
+
+        absoluteBins = lib.concatMapStringsSep " " (
+          relpath: ''"$out"/${lib.escapeShellArg relpath}''
+        ) config.includeAbsolute;
       in
       pkgs.symlinkJoin (
         wrapperNameSet
@@ -388,6 +399,18 @@ in
               [[ -x "$bin" ]] || continue
               shouldWrap "$bin" || continue
 
+              name=''${bin##*/}
+              args=(${config.finalMakeWrapperArgs})
+              ${lib.concatMapAttrsStringSep "\n" (n: v: /* bash */ ''
+                if [[ "$name" == "${n}" ]]; then
+                  args+=(${v.finalMakeWrapperArgs})
+                fi
+              '') config.bin}
+              wrapProgram "$bin" ''${args[@]}
+            done
+
+            for bin in ${absoluteBins}; do
+              [[ -x "$bin" ]] || continue
               name=''${bin##*/}
               args=(${config.finalMakeWrapperArgs})
               ${lib.concatMapAttrsStringSep "\n" (n: v: /* bash */ ''
