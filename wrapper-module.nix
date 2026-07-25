@@ -424,6 +424,16 @@ in
             ${lib.optionalString hasMan ''
               cp -rs ${config.package.man} $man
             ''}
+
+            # Replace references to the wrapped package in desktop and systemd files
+            for file in $out/share/applications/*.desktop \
+                        $out/lib/systemd/system/* \
+                        $out/lib/systemd/user/*; do
+              grep -q "${config.package}" "$file" || continue
+              cp --remove-destination "$(realpath "$file")" "$file"
+              substituteInPlace "$file" \
+                --replace-fail "${config.package}" "$out"
+            done
           '';
         }
       );

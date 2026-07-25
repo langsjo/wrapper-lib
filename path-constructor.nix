@@ -71,13 +71,13 @@ runCommand drvName { } ''
         if ! cp --update=none-fail "$realsource" "$target" ; then
           printerr "Attempting to copy $source to $target but $target already exists"
           exit 1
-        fi
-        chmod +x "$target"
+      fi
+      chmod +x "$target"
 
       elif ! ln -s "$realsource" "$target" ; then
         printerr "Attempting to link $source to $target but $target already exists"
         exit 1
-        fi
+      fi
     fi
   }
 
