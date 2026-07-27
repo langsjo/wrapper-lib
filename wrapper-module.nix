@@ -406,7 +406,7 @@ in
                   args+=(${v.finalMakeWrapperArgs})
                 fi
               '') config.bin}
-              wrapProgram "$bin" ''${args[@]}
+              wrapProgram "$bin" "''${args[@]}"
             done
 
             for bin in ${absoluteBins}; do
@@ -418,11 +418,11 @@ in
                   args+=(${v.finalMakeWrapperArgs})
                 fi
               '') config.bin}
-              wrapProgram "$bin" ''${args[@]}
+              wrapProgram "$bin" "''${args[@]}"
             done
 
             ${lib.optionalString hasMan ''
-              cp -rs ${config.package.man} $man
+              cp -rs "${config.package.man}" $man
             ''}
 
             # Replace references to the wrapped package in desktop and systemd files
