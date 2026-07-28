@@ -81,8 +81,8 @@ let
       description = ''
         Whether to use `makeBinaryWrapper` instead of `makeWrapper` to create the wrapper.
 
-        `makeWrapper` is required if the wrapper needs some shell features (such as looking up environment 
-        variables at runtime) or its unique arguments. More Info about their differences 
+        `makeWrapper` is required if the wrapper needs some shell features (such as looking up environment
+        variables at runtime) or its unique arguments. More Info about their differences
         [here](https://nixos.org/manual/nixpkgs/unstable/#:~:text=Using%20the%20makeBinaryWrapper%20implementation)
       '';
       type = types.bool;
@@ -148,12 +148,12 @@ let
       path = mkOption {
         description = ''
           Attribute set with keys as the flags and values as the definition
-          of a store path that will be passed with the flag, ie. 
+          of a store path that will be passed with the flag, ie.
           `--config-dir <defined store path>`
 
           The value should be an attribute set where each key is the name of a
           file in the resulting directory, and "/" is the special name to define
-          the store path to be a single link to something with `source`, or 
+          the store path to be a single link to something with `source`, or
           a single file with `text`.
 
           The file can be declared to be in a subdirectory by setting the key name
@@ -207,7 +207,7 @@ let
         would set `PATH = $PATH:/nix/store/AAAAAAAAA-hello-1.0.0/bin`.
 
         This can be used to set ie. fallback paths for when a binary
-        from $PATH should be used if found, but otherwise use the one 
+        from $PATH should be used if found, but otherwise use the one
         from the path specified here.
       '';
 
@@ -355,6 +355,14 @@ in
         outputs = [ "out" ] ++ (lib.optional hasMan "man");
         makeWrapperPkg = if config.useBinaryWrapper then pkgs.makeBinaryWrapper else pkgs.makeWrapper;
 
+        pathsPassthru = {
+          envPaths = config.env.paths;
+          flagPaths = config.flags.path;
+          binPaths = builtins.mapAttrs (n: v: {
+            envPaths = v.env.paths;
+            flagPaths = v.flags.path;
+          }) config.bin;
+        };
         absoluteBins = lib.concatMapStringsSep " " (
           relpath: ''"$out"/${lib.escapeShellArg relpath}''
         ) config.includeAbsolute;
@@ -363,7 +371,7 @@ in
         wrapperNameSet
         // {
           inherit outputs;
-          inherit (config.package) passthru;
+          passthru = pathsPassthru // config.package.passthru;
           meta = config.package.meta // {
             outputsToInstall = outputs;
           };
