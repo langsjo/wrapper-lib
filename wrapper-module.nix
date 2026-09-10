@@ -375,6 +375,7 @@ in
           meta = config.package.meta // {
             outputsToInstall = outputs;
           };
+          preferLocalBuild = true;
 
           paths = [ config.package ];
           nativeBuildInputs = [ makeWrapperPkg ];

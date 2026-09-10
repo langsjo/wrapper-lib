@@ -1,5 +1,5 @@
 {
-  runCommand,
+  runCommandLocal,
   lib,
 }:
 {
@@ -13,7 +13,7 @@ let
   cleanAttrName = builtins.replaceStrings illegalChars replacements attrName;
   drvName = "${wrapperName}_${cleanAttrName}";
 in
-runCommand drvName { } ''
+runCommandLocal drvName { } ''
   printerr() {
     echo "${drvName}: $1"
   }
