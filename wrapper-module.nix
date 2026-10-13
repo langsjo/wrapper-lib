@@ -65,30 +65,6 @@ let
     };
 
   generalOptionsSet = {
-    package = mkOption {
-      description = "The package to wrap";
-      type = types.package;
-      example = literalExpression "pkgs.hello";
-    };
-
-    result = mkOption {
-      description = "The resulting wrapped package (read only)";
-      type = types.package;
-      readOnly = true;
-    };
-
-    useBinaryWrapper = mkOption {
-      description = ''
-        Whether to use `makeBinaryWrapper` instead of `makeWrapper` to create the wrapper.
-
-        `makeWrapper` is required if the wrapper needs some shell features (such as looking up environment
-        variables at runtime) or its unique arguments. More Info about their differences
-        [here](https://nixos.org/manual/nixpkgs/unstable/#:~:text=Using%20the%20makeBinaryWrapper%20implementation)
-      '';
-      type = types.bool;
-      example = true;
-    };
-
     extraMakeWrapperArgs = mkOption {
       description = ''
         A list of extra arguments to pass to `make[Binary]Wrapper`.
@@ -101,33 +77,6 @@ let
           "--set-default" "XDG_CACHE_HOME" "/tmp"
         ]
       '';
-    };
-
-    excludeBins = mkOption {
-      description = ''
-        List of files in $out/bin/ to not wrap. Can not be set if `includeBins`
-        is set.
-      '';
-      type = with types; listOf str;
-      default = [ ];
-      example = [ "kitten" ];
-    };
-
-    includeBins = mkOption {
-      description = ''
-        List of files in $out/bin/ to wrap, wraps everything by default. Can not
-        be set if `excludeBins` is set.
-      '';
-      type = with types; listOf str;
-      default = [ ];
-      example = [ "kitty" ];
-    };
-
-    includeAbsolute = mkOption {
-      description = "Also include binaries in this path relative from $out";
-      type = with types; listOf str;
-      default = [ ];
-      example = [ "libexec/scdaemon" ];
     };
 
     flags = {
@@ -335,6 +284,70 @@ in
         ]);
       default = { };
     };
+
+    useBinaryWrapper = mkOption {
+      description = ''
+        Whether to use `makeBinaryWrapper` instead of `makeWrapper` to create the wrapper.
+
+        `makeWrapper` is required if the wrapper needs some shell features (such as looking up environment
+        variables at runtime) or its unique arguments. More Info about their differences
+        [here](https://nixos.org/manual/nixpkgs/unstable/#:~:text=Using%20the%20makeBinaryWrapper%20implementation)
+      '';
+      type = types.bool;
+      example = true;
+    };
+
+    package = mkOption {
+      description = "The package to wrap";
+      type = types.package;
+      example = literalExpression "pkgs.hello";
+    };
+
+    result = mkOption {
+      description = "The resulting wrapped package (read only)";
+      type = types.package;
+      readOnly = true;
+    };
+
+    excludeBins = mkOption {
+      description = ''
+        List of files in $out/bin/ to not wrap. Can not be set if `includeBins`
+        is set.
+      '';
+      type = with types; listOf str;
+      default = [ ];
+      example = [ "kitten" ];
+    };
+
+    includeBins = mkOption {
+      description = ''
+        List of files in $out/bin/ to wrap, wraps everything by default. Can not
+        be set if `excludeBins` is set.
+      '';
+      type = with types; listOf str;
+      default = [ ];
+      example = [ "kitty" ];
+    };
+
+    includeAbsolute = mkOption {
+      description = "Also include binaries in this path relative from $out";
+      type = with types; listOf str;
+      default = [ ];
+      example = [ "libexec/scdaemon" ];
+    };
+
+
+    preBuild = mkOption {
+      description = "Bash code to run before the wrapping, but after symlinking";
+      type = types.lines;
+      default = "";
+    };
+
+    postBuild = mkOption {
+      description = "Bash code to run after wrapping";
+      type = types.lines;
+      default = "";
+    };
   };
 
   config = {
@@ -380,6 +393,8 @@ in
           paths = [ config.package ];
           nativeBuildInputs = [ makeWrapperPkg ];
           postBuild = ''
+            ${config.preBuild}
+
             shouldWrap() {
               ${lib.toShellVar "includes" config.includeBins}
               ${lib.toShellVar "excludes" config.excludeBins}
@@ -443,6 +458,8 @@ in
               substituteInPlace "$file" \
                 --replace-fail "${config.package}" "$out"
             done
+
+            ${config.postBuild}
           '';
         }
       );
